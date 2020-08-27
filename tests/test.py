@@ -108,5 +108,43 @@ class TestYosysScript(unittest.TestCase):
             app.build(force_all=True)
 
 
+class TestFlatten(unittest.TestCase):
+
+    TEST_CASE_NAME = "TestFlatten"
+    TEST_CASE_BUILD_DIR = os.path.join("build", TEST_CASE_NAME)
+
+    def test_yosys_script(self):
+        TEST_NAME = "test_flatten"
+        TEST_BUILD_DIR = os.path.join("build", self.TEST_CASE_NAME, TEST_NAME)
+        TEST_FILES = [
+            "test_flatten/test_flatten.rst",
+            "verilog/fullAdder.v",
+            "verilog/halfAdder.v"
+        ]
+        TEST_JINJA_DICT = {
+            "verilog_diagrams_path": "'{}'".format(VERILOG_DIAGRAMS_PATH),
+            "master_doc": "'test_flatten'",
+            "custom_variables": ""
+        }
+
+        # Create the TestCase build directory
+        os.makedirs(TEST_BUILD_DIR, exist_ok=True)
+
+        # Generate a Sphinx config
+        generate_sphinx_config(TEST_BUILD_DIR, **TEST_JINJA_DICT)
+
+        # Copy the test files
+        for src in TEST_FILES:
+            src_basename = os.path.basename(src)
+            dst = os.path.join(TEST_BUILD_DIR, src_basename)
+            shutil.copyfile(src, dst)
+
+        # Run the Sphinx
+        sphinx_dirs = get_sphinx_dirs(TEST_BUILD_DIR)
+        with docutils_namespace():
+            app = Sphinx(buildername="html", warningiserror=True, **sphinx_dirs)
+            app.build(force_all=True)
+
+
 if __name__ == '__main__':
     unittest.main()
