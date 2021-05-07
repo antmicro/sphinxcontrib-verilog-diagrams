@@ -496,8 +496,30 @@ def html_visit_hdl_diagram(self, node):
 def render_diagram_latex(self, node, code, options):
     # type: (nodes.NodeVisitor, hdl_diagram, unicode, Dict, unicode) -> None
 
+    yosys_script = self.builder.config.hdl_diagram_yosys_script
+    if yosys_script != 'default' and not path.exists(yosys_script):
+        raise HDLDiagramError("Yosys script file {} does not exist! Change hdl_diagram_yosys_script variable".format(yosys_script))
+
+    skin = self.builder.config.hdl_diagram_skin
+    if skin != 'default' and not path.exists(skin):
+        raise HDLDiagramError("Skin file {} does not exist! Change hdl_diagram_skin variable".format(skin))
+
+    format = self.builder.config.hdl_diagram_output_format
     try:
-        fname, outfn = render_diagram(self, code, options, 'pdf')
+        if format not in ('png', 'svg'):
+            raise HDLDiagramError("hdl_diagram_output_format must be one of 'png', "
+                                  "'svg', but is %r" % format)
+        fname, outfn = render_diagram(self, code, options, 'png', skin, yosys_script)
+    except HDLDiagramError as exc:
+        logger.warning('hdl_diagram code %r: ' % code + str(exc))
+        raise nodes.SkipNode
+
+    if format == "svg":
+        logger.warning("HDL Diagrams does not support svg in latex frontend. Format changed to png")
+        format = "png"
+
+    try:
+        fname, outfn = render_diagram(self, code, options, format, skin, yosys_script)
     except HDLDiagramError as exc:
         logger.warning('hdl_diagram code %r: ' % code + str(exc))
         raise nodes.SkipNode
@@ -517,7 +539,7 @@ def render_diagram_latex(self, node, code, options):
             elif node['align'] == 'right':
                 self.body.append('{\\hspace*{\\fill}')
                 post = '}'
-        self.body.append('%s\\includegraphics{%s}%s' %
+        self.body.append('%s\\sphinxincludegraphics{%s}%s' %
                          (para_separator, fname, para_separator))
         if post:
             self.body.append(post)
