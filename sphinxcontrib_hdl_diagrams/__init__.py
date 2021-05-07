@@ -26,6 +26,7 @@ sphinx_hdl_diagrams
 import os
 import re
 import codecs
+import cairosvg
 import posixpath
 import subprocess
 import sys
@@ -165,7 +166,8 @@ class HDLDiagram(Directive):
         "hdl_diagram_output_format": ["svg", "png"],
         "hdl_diagram_skin": ["default"],  # or path
         "hdl_diagram_yosys_script": ["default"],  # or path
-        "hdl_diagram_yosys": ["yowasp", "system"]  # or path
+        "hdl_diagram_yosys": ["yowasp", "system"],  # or path
+        "hdl_diagram_netlistsvg_png_width": [1080]
     }
 
     def run(self):
@@ -318,7 +320,8 @@ def run_netlistsvg(ipath, opath, skin='default'):
 
 
 def diagram_netlistsvg(ipath, opath, module='top', flatten=False,
-                       yosys_script='default', skin='default', yosys='yowasp'):
+                       yosys_script='default', skin='default', yosys='yowasp',
+                       png_width=1080):
     # Assertions
 
     assert path.exists(ipath), 'Input file missing: {}'.format(ipath)
@@ -331,6 +334,7 @@ def diagram_netlistsvg(ipath, opath, module='top', flatten=False,
         assert path.exists(skin), 'Skin file missing: {}'.format(skin)
     oprefix, oext = path.splitext(opath)
     assert oext.startswith('.'), oext
+    assert png_width > 0, 'png width for netlistsvg should be higher than zero'
 
     # Diagram generation
 
@@ -361,6 +365,9 @@ def diagram_netlistsvg(ipath, opath, module='top', flatten=False,
     assert path.exists(ojson), 'Output file {} was not created!'.format(ojson)
 
     run_netlistsvg(ojson, opath, skin)
+    if oext == "png":
+        cairosvg.svg2png(url=opath, write_to=opath, output_width=png_width)
+
     print('netlistsvg - Output file created: {}'.format(ojson))
 
 
@@ -411,6 +418,10 @@ def render_diagram(self, code, options, format, skin, yosys_script):
     else:
         yosys = yosys if yosys in yosys_options else os.path.realpath(yosys)
 
+    netlistsvg_png_width = self.builder.config.hdl_diagram_netlistsvg_png_width
+    if netlistsvg_png_width <= 0:
+            raise HDLDiagramError("Default netlistsvg png width should be non-negative")
+
     diagram_type = options['type']
     if diagram_type.startswith('yosys'):
         assert diagram_type.startswith('yosys-'), diagram_type
@@ -428,7 +439,8 @@ def render_diagram(self, code, options, format, skin, yosys_script):
             module=options['module'],
             flatten=options['flatten'],
             skin=skin,
-            yosys=yosys)
+            yosys=yosys,
+            png_width=netlistsvg_png_width)
     else:
         raise Exception('Invalid diagram type "%s"' % diagram_type)
         # raise self.severe(\n' %
@@ -568,4 +580,5 @@ def setup(app):
     app.add_config_value('hdl_diagram_skin', 'default', 'html')
     app.add_config_value('hdl_diagram_yosys_script', 'default', 'html')
     app.add_config_value('hdl_diagram_yosys', 'yowasp', 'html')
+    app.add_config_value('hdl_diagram_netlistsvg_png_width', 1080, 'html')
     return {'version': '1.0', 'parallel_read_safe': True}

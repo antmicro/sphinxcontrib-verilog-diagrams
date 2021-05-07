@@ -47,7 +47,8 @@ install_requires = [
     'docutils',
     'sphinx',
     'nmigen',
-    'yowasp_yosys'
+    'yowasp_yosys',
+    'cairosvg'
 ]
 
 setup(
